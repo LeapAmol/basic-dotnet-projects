@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CI/CD Deployment Guide — ASP.NET Core to IIS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 15px;
+      color: #222;
+      background: #f4f6f9;
+      line-height: 1.7;
+    }
+
+    /* ── Sidebar ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0;
+      width: 260px;
+      height: 100vh;
+      background: #1a2236;
+      color: #c8d0e0;
+      overflow-y: auto;
+      padding: 24px 0 40px;
+      z-index: 100;
+    }
+    nav .nav-logo {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid #2e3d5a;
+      margin-bottom: 12px;
+    }
+    nav .nav-logo h2 {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    nav .nav-logo p { font-size: 11px; color: #6b7fa3; margin-top: 2px; }
+    nav a {
+      display: block;
+      padding: 7px 20px;
+      color: #a0aec0;
+      text-decoration: none;
+      font-size: 13px;
+      transition: background 0.15s, color 0.15s;
+    }
+    nav a:hover { background: #243050; color: #fff; }
+    nav .nav-section {
+      padding: 14px 20px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #4a6080;
+    }
+
+    /* ── Main ── */
+    main {
+      margin-left: 260px;
+      padding: 40px 48px 80px;
+      max-width: 1000px;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      background: linear-gradient(135deg, #1a2236 0%, #243050 100%);
+      color: #fff;
+      padding: 36px 40px;
+      border-radius: 10px;
+      margin-bottom: 36px;
+    }
+    .page-header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .page-header p  { color: #a0b4cc; font-size: 14px; }
+    .badge-row { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 12px;
+      color: #c8d8ee;
+    }
+
+    /* ── Sections ── */
+    section { margin-bottom: 48px; }
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a2236;
+      border-left: 4px solid #3b82f6;
+      padding-left: 12px;
+      margin-bottom: 18px;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #2d3a52;
+      margin: 20px 0 8px;
+    }
+    p { margin-bottom: 10px; color: #3d4d62; }
+
+    /* ── Steps ── */
+    .step-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .step-card .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+      background: #3b82f6;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .step-header h4 { font-size: 15px; font-weight: 700; color: #1a2236; }
+    .step-card p { margin-bottom: 8px; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 6px;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 10px 0 14px;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background: #eef2ff;
+      color: #3730a3;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    pre code { background: none; color: inherit; padding: 0; border-radius: 0; font-size: inherit; }
+
+    .comment  { color: #6b7fa3; }
+    .cmd      { color: #86efac; }
+    .kw       { color: #93c5fd; }
+    .str      { color: #fca5a5; }
+    .var      { color: #fcd34d; }
+
+    /* ── Callouts ── */
+    .callout {
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin: 14px 0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { flex: 1; }
+    .callout-body strong { display: block; margin-bottom: 2px; font-size: 13px; }
+    .callout-body p { margin: 0; font-size: 13px; }
+    .callout.info    { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .callout.info .callout-icon { color: #3b82f6; }
+    .callout.info strong { color: #1d4ed8; }
+    .callout.warn    { background: #fffbeb; border: 1px solid #fde68a; }
+    .callout.warn .callout-icon { color: #d97706; }
+    .callout.warn strong { color: #92400e; }
+    .callout.success { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .callout.success .callout-icon { color: #16a34a; }
+    .callout.success strong { color: #14532d; }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    th { background: #1a2236; color: #fff; padding: 10px 16px; text-align: left; font-size: 13px; }
+    td { padding: 10px 16px; border-bottom: 1px solid #e9eef5; font-size: 13px; color: #3d4d62; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f8fafc; }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; padding: 0; }
+    .checklist li {
+      padding: 8px 12px 8px 36px;
+      position: relative;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13px;
+      color: #3d4d62;
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist li::before {
+      content: "☐";
+      position: absolute;
+      left: 10px;
+      color: #94a3b8;
+      font-size: 15px;
+    }
+
+    /* ── Architecture diagram ── */
+    .arch-diagram {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      margin: 16px 0;
+    }
+    .arch-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 8px 0;
+    }
+    .arch-box {
+      background: #1a2236;
+      color: #fff;
+      border-radius: 8px;
+      padding: 14px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      min-width: 130px;
+      text-align: center;
+    }
+    .arch-box span { display: block; font-size: 10px; font-weight: 400; color: #93c5fd; margin-top: 3px; }
+    .arch-box.blue  { background: #2563eb; }
+    .arch-box.green { background: #15803d; }
+    .arch-box.purple{ background: #6d28d9; }
+    .arch-arrow {
+      font-size: 22px;
+      color: #94a3b8;
+      padding: 0 8px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: #94a3b8;
+      text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      nav { display: none; }
+      main { margin-left: 0; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+<nav>
+  <div class="nav-logo">
+    <h2>CI/CD Deployment</h2>
+    <p>ASP.NET Core → IIS via GitHub Actions</p>
+  </div>
+
+  <div class="nav-section">Overview</div>
+  <a href="#overview">Architecture</a>
+  <a href="#prerequisites">Prerequisites</a>
+
+  <div class="nav-section">Server Setup</div>
+  <a href="#step1">1. Enable IIS Features</a>
+  <a href="#step2">2. Install .NET 6 SDK</a>
+  <a href="#step3">3. Install Hosting Bundle</a>
+  <a href="#step4">4. Create IIS Site</a>
+  <a href="#step5">5. Open Firewall Port</a>
+
+  <div class="nav-section">GitHub Actions</div>
+  <a href="#step6">6. Register Self-Hosted Runner</a>
+  <a href="#step7">7. Run as a Service</a>
+  <a href="#step8">8. Add Workflow File</a>
+
+  <div class="nav-section">Verification</div>
+  <a href="#step9">9. Trigger First Deploy</a>
+  <a href="#verify">Verify the Site</a>
+  <a href="#troubleshoot">Troubleshooting</a>
+  <a href="#variables">Variable Reference</a>
+</nav>
+
+<!-- ══════════════════════ MAIN ══════════════════════ -->
+<main>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1>CI/CD Deployment Guide</h1>
+    <p>Step-by-step guide to set up GitHub Actions CI/CD pipeline for deploying an ASP.NET Core 6 web application to IIS on Windows Server.</p>
+    <div class="badge-row">
+      <span class="badge">Windows Server 2025</span>
+      <span class="badge">IIS 10</span>
+      <span class="badge">.NET 6</span>
+      <span class="badge">GitHub Actions</span>
+      <span class="badge">Self-Hosted Runner</span>
+    </div>
+  </div>
+
+  <!-- ── Overview ── -->
+  <section id="overview">
+    <h2>Architecture Overview</h2>
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box blue">Developer<span>Push to main branch</span></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">GitHub<span>Triggers workflow</span></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box purple">Self-Hosted Runner<span>On the target VM</span></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box green">IIS Site<span>Live on port 8080</span></div>
+      </div>
+    </div>
+    <p>The self-hosted runner runs <strong>on the same Windows Server VM</strong> as IIS. When a developer pushes to <code>main</code>, GitHub notifies the runner, which then builds, tests, and deploys the application directly to the IIS site folder — no external access or deploy keys required.</p>
+  </section>
+
+  <!-- ── Prerequisites ── -->
+  <section id="prerequisites">
+    <h2>Prerequisites</h2>
+    <table>
+      <tr><th>Requirement</th><th>Detail</th></tr>
+      <tr><td>Operating System</td><td>Windows Server 2016 / 2019 / 2022 / 2025</td></tr>
+      <tr><td>IIS</td><td>Installed via Server Manager (Web Server role)</td></tr>
+      <tr><td>Internet access on VM</td><td>Required to download packages and reach GitHub</td></tr>
+      <tr><td>GitHub repository</td><td>You must have Admin access to the repo to add runners and workflows</td></tr>
+      <tr><td>GitHub Runner token</td><td>Generated from repo Settings → Actions → Runners</td></tr>
+      <tr><td>PowerShell</td><td>Version 5.1+ (included in all modern Windows Server versions)</td></tr>
+      <tr><td>winget</td><td>Windows Package Manager — pre-installed on Windows Server 2025; install via App Installer for older versions</td></tr>
+    </table>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Run all PowerShell commands as Administrator</strong>
+        <p>Right-click PowerShell → "Run as administrator" before executing any commands in this guide.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 1 ── -->
+  <section id="step1">
+    <h2>Step 1 — Enable IIS Features</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">1</span>
+        <h4>Install IIS and ASP.NET 4.8 Windows Features</h4>
+      </div>
+      <p>Run the following in an elevated PowerShell window. This installs IIS along with the ASP.NET 4.8 and .NET extensibility features required to host ASP.NET Core apps.</p>
+      <pre><code><span class="comment"># Install IIS + ASP.NET 4.8 features</span>
+Install-WindowsFeature `
+    -Name Web-Server, Web-Asp-Net45, Web-Net-Ext45, `
+           NET-Framework-45-ASPNET `
+    -IncludeAllSubFeature `
+    -IncludeManagementTools</code></pre>
+
+      <p>Verify IIS is installed and running:</p>
+      <pre><code>Get-Service W3SVC | Select-Object Status, Name, DisplayName</code></pre>
+
+      <div class="callout success">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          <strong>Expected output</strong>
+          <p><code>Status: Running, Name: W3SVC, DisplayName: World Wide Web Publishing Service</code></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 2 ── -->
+  <section id="step2">
+    <h2>Step 2 — Install .NET 6 SDK</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">2</span>
+        <h4>Install .NET 6 SDK via winget</h4>
+      </div>
+      <p>The SDK is required on the build server (the same VM) so the runner can compile the project.</p>
+      <pre><code>winget install Microsoft.DotNet.SDK.6 `
+    --accept-source-agreements `
+    --accept-package-agreements `
+    --silent</code></pre>
+
+      <p>Verify the installation:</p>
+      <pre><code>& "C:\Program Files\dotnet\dotnet.exe" --version
+<span class="comment"># Expected: 6.0.xxx</span></code></pre>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Note on .NET version</strong>
+          <p>If your project targets a different .NET version (e.g. net7.0, net8.0), replace <code>Microsoft.DotNet.SDK.6</code> with <code>Microsoft.DotNet.SDK.7</code> or <code>Microsoft.DotNet.SDK.8</code> accordingly.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 3 ── -->
+  <section id="step3">
+    <h2>Step 3 — Install ASP.NET Core Hosting Bundle</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">3</span>
+        <h4>Install the .NET 6 Hosting Bundle</h4>
+      </div>
+      <p>The Hosting Bundle installs the .NET runtime and the <strong>ASP.NET Core Module (ANCM)</strong> — the IIS module that forwards HTTP requests to the Kestrel server inside the .NET process.</p>
+      <pre><code>winget install Microsoft.DotNet.HostingBundle.6 `
+    --accept-source-agreements `
+    --accept-package-agreements `
+    --silent</code></pre>
+
+      <p>After installing, restart IIS to load the ANCM module:</p>
+      <pre><code>Stop-Service W3SVC -Force
+Start-Service W3SVC
+Write-Host "IIS restarted"</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Hosting Bundle restart is mandatory</strong>
+          <p>IIS must be restarted after installing the Hosting Bundle, otherwise ASP.NET Core apps will return HTTP 500.19 errors.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 4 ── -->
+  <section id="step4">
+    <h2>Step 4 — Create the IIS Site</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">4</span>
+        <h4>Create deploy folder, App Pool, and IIS Website</h4>
+      </div>
+      <p>Replace the variables at the top with values appropriate for your server.</p>
+      <pre><code><span class="comment"># ── Variables — change these for each server ──────────────</span>
+<span class="var">$siteName</span>    = <span class="str">"SampleWebApp"</span>        <span class="comment"># IIS site name</span>
+<span class="var">$appPool</span>     = <span class="str">"SampleWebAppPool"</span>    <span class="comment"># IIS application pool name</span>
+<span class="var">$sitePath</span>    = <span class="str">"C:\inetpub\SampleWebApp"</span>  <span class="comment"># Physical path for site files</span>
+<span class="var">$port</span>        = 8080                  <span class="comment"># HTTP port for this site</span>
+<span class="comment"># ──────────────────────────────────────────────────────────</span>
+
+<span class="kw">Import-Module</span> WebAdministration
+
+<span class="comment"># 1. Create the deploy directory</span>
+New-Item -ItemType Directory -Path <span class="var">$sitePath</span> -Force | Out-Null
+
+<span class="comment"># 2. Create Application Pool (no managed runtime = ASP.NET Core mode)</span>
+<span class="kw">if</span> (-not (Test-Path "IIS:\AppPools\<span class="var">$appPool</span>")) {
+    New-WebAppPool -Name <span class="var">$appPool</span>
+    Set-ItemProperty "IIS:\AppPools\<span class="var">$appPool</span>" `
+        -Name managedRuntimeVersion -Value <span class="str">""</span>
+    Write-Host "App pool created: <span class="var">$appPool</span>"
+}
+
+<span class="comment"># 3. Create the IIS Website</span>
+<span class="kw">if</span> (-not (Test-Path "IIS:\Sites\<span class="var">$siteName</span>")) {
+    New-Website -Name <span class="var">$siteName</span> `
+                -Port <span class="var">$port</span> `
+                -PhysicalPath <span class="var">$sitePath</span> `
+                -ApplicationPool <span class="var">$appPool</span>
+    Write-Host "IIS site created: <span class="var">$siteName</span> on port <span class="var">$port</span>"
+}
+
+<span class="comment"># 4. Verify</span>
+Get-WebSite -Name <span class="var">$siteName</span> | Select-Object Name, State, PhysicalPath</code></pre>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Why managedRuntimeVersion = empty?</strong>
+          <p>ASP.NET Core apps run their own runtime (Kestrel). Setting the App Pool to "No Managed Code" prevents IIS from trying to load the old CLR, which would conflict.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 5 ── -->
+  <section id="step5">
+    <h2>Step 5 — Open Windows Firewall Port</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">5</span>
+        <h4>Add an inbound firewall rule for the site port</h4>
+      </div>
+      <p>Replace <code>8080</code> with your chosen port number.</p>
+      <pre><code><span class="var">$port</span>     = 8080
+<span class="var">$ruleName</span> = <span class="str">"IIS SampleWebApp Port <span class="var">$port</span>"</span>
+
+New-NetFirewallRule `
+    -DisplayName <span class="var">$ruleName</span> `
+    -Direction   Inbound `
+    -Protocol    TCP `
+    -LocalPort   <span class="var">$port</span> `
+    -Action      Allow `
+    -Profile     Any
+
+Write-Host "Firewall rule added: <span class="var">$ruleName</span>"</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Cloud / Hosted VMs — check your provider's firewall too</strong>
+          <p>If the VM is hosted on Azure, AWS, or a similar provider, you must also open the port in the <strong>Network Security Group (NSG)</strong> or <strong>Security Group</strong> from the provider's portal. Windows Firewall alone is not enough.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 6 ── -->
+  <section id="step6">
+    <h2>Step 6 — Register the GitHub Actions Self-Hosted Runner</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">6a</span>
+        <h4>Get the runner registration token from GitHub</h4>
+      </div>
+      <ol style="margin-left:20px; font-size:13px; color:#3d4d62; line-height:2;">
+        <li>Go to your GitHub repository</li>
+        <li>Click <strong>Settings</strong> → <strong>Actions</strong> → <strong>Runners</strong></li>
+        <li>Click <strong>New self-hosted runner</strong></li>
+        <li>Select <strong>Windows</strong> as the OS</li>
+        <li>Copy the token from the <code>--token</code> line in the <em>Configure</em> section</li>
+      </ol>
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Token expires in 1 hour</strong>
+          <p>Use the token immediately after copying. If it expires, generate a new one by repeating the steps above.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">6b</span>
+        <h4>Download and extract the runner</h4>
+      </div>
+      <pre><code><span class="comment"># Create runner directory</span>
+New-Item -ItemType Directory -Path <span class="str">"C:\actions-runner"</span> -Force | Out-Null
+
+<span class="comment"># Download latest runner (check https://github.com/actions/runner/releases for latest version)</span>
+<span class="var">$runnerVersion</span> = <span class="str">"2.323.0"</span>
+<span class="var">$runnerUrl</span> = <span class="str">"https://github.com/actions/runner/releases/download/v<span class="var">$runnerVersion</span>/actions-runner-win-x64-<span class="var">$runnerVersion</span>.zip"</span>
+
+Invoke-WebRequest -Uri <span class="var">$runnerUrl</span> -OutFile <span class="str">"C:\actions-runner\runner.zip"</span>
+
+<span class="comment"># Extract</span>
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::ExtractToDirectory(
+    <span class="str">"C:\actions-runner\runner.zip"</span>,
+    <span class="str">"C:\actions-runner"</span>
+)
+Remove-Item <span class="str">"C:\actions-runner\runner.zip"</span>
+Write-Host <span class="str">"Runner extracted successfully"</span></code></pre>
+    </div>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">6c</span>
+        <h4>Configure (register) the runner</h4>
+      </div>
+      <p>Replace the values in angle brackets with your actual details.</p>
+      <pre><code>Set-Location <span class="str">"C:\actions-runner"</span>
+
+.\config.cmd `
+    --url   <span class="str">"https://github.com/&lt;OWNER&gt;/&lt;REPO&gt;"</span> `
+    --token <span class="str">"&lt;PASTE_TOKEN_HERE&gt;"</span> `
+    --name  <span class="str">"windows-iis-runner"</span> `
+    --labels <span class="str">"self-hosted,Windows,iis"</span> `
+    --runnergroup Default `
+    --work  <span class="str">"_work"</span> `
+    --unattended</code></pre>
+
+      <div class="callout success">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          <strong>Expected output</strong>
+          <p><code>Runner successfully added</code> and <code>Settings Saved.</code></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 7 ── -->
+  <section id="step7">
+    <h2>Step 7 — Run the Runner as a Windows Service</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">7</span>
+        <h4>Create a Scheduled Task so the runner starts automatically</h4>
+      </div>
+      <p>This ensures the runner restarts after a VM reboot without manual intervention.</p>
+      <pre><code><span class="var">$action</span>    = New-ScheduledTaskAction `
+    -Execute          <span class="str">"C:\actions-runner\run.cmd"</span> `
+    -WorkingDirectory <span class="str">"C:\actions-runner"</span>
+
+<span class="var">$trigger</span>   = New-ScheduledTaskTrigger -AtStartup
+
+<span class="var">$settings</span>  = New-ScheduledTaskSettingsSet `
+    -RestartCount    3 `
+    -RestartInterval (New-TimeSpan -Minutes 1) `
+    -ExecutionTimeLimit (New-TimeSpan -Hours 0)
+
+<span class="var">$principal</span> = New-ScheduledTaskPrincipal `
+    -UserId    <span class="str">"SYSTEM"</span> `
+    -LogonType ServiceAccount `
+    -RunLevel  Highest
+
+Register-ScheduledTask `
+    -TaskName  <span class="str">"GitHubActionsRunner"</span> `
+    -Action    <span class="var">$action</span> `
+    -Trigger   <span class="var">$trigger</span> `
+    -Settings  <span class="var">$settings</span> `
+    -Principal <span class="var">$principal</span> `
+    -Force
+
+<span class="comment"># Start it immediately</span>
+Start-ScheduledTask -TaskName <span class="str">"GitHubActionsRunner"</span>
+Start-Sleep -Seconds 3
+Get-ScheduledTask -TaskName <span class="str">"GitHubActionsRunner"</span> | Select-Object TaskName, State</code></pre>
+
+      <div class="callout success">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          <strong>Expected output</strong>
+          <p><code>TaskName: GitHubActionsRunner | State: Running</code></p>
+        </div>
+      </div>
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Verify runner is online</strong>
+          <p>Go to GitHub repo → Settings → Actions → Runners. The runner should show as <strong>Idle</strong> (green dot) within 30 seconds.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 8 ── -->
+  <section id="step8">
+    <h2>Step 8 — Add the GitHub Actions Workflow File</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">8</span>
+        <h4>Add git to the system PATH (required for actions/checkout)</h4>
+      </div>
+      <p>The runner process must be able to find <code>git.exe</code>, otherwise <code>actions/checkout</code> falls back to an API-based download that fails for repos with a <code>.github</code> folder.</p>
+      <pre><code><span class="var">$gitPath</span>     = <span class="str">"C:\Program Files\Git\cmd"</span>
+<span class="var">$currentPath</span> = [System.Environment]::GetEnvironmentVariable(<span class="str">"PATH"</span>, <span class="str">"Machine"</span>)
+
+<span class="kw">if</span> (<span class="var">$currentPath</span> -notlike <span class="str">"*<span class="var">$gitPath</span>*"</span>) {
+    [System.Environment]::SetEnvironmentVariable(
+        <span class="str">"PATH"</span>, <span class="str">"<span class="var">$currentPath</span>;<span class="var">$gitPath</span>"</span>, <span class="str">"Machine"</span>
+    )
+    Write-Host <span class="str">"Git added to system PATH"</span>
+}
+
+<span class="comment"># Restart runner to pick up new PATH</span>
+Stop-ScheduledTask  -TaskName <span class="str">"GitHubActionsRunner"</span>
+Start-Sleep -Seconds 2
+Start-ScheduledTask -TaskName <span class="str">"GitHubActionsRunner"</span></code></pre>
+    </div>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">8b</span>
+        <h4>Create the workflow file in your repository</h4>
+      </div>
+      <p>Create the file <code>.github/workflows/deploy-to-iis.yml</code> in your repository with the content below. Adjust the <strong>env</strong> variables to match your project paths, port, and pool name.</p>
+      <pre><code><span class="kw">name:</span> Build and Deploy to IIS
+
+<span class="kw">on:</span>
+  push:
+    branches: [ main ]
+  workflow_dispatch:      <span class="comment"># allows manual trigger from GitHub UI</span>
+
+<span class="kw">jobs:</span>
+  build-and-deploy:
+    <span class="kw">runs-on:</span> [self-hosted, Windows, iis]
+
+    <span class="kw">env:</span>
+      <span class="comment"># ── Change these for your project ─────────────────────────</span>
+      SOLUTION_PATH: <span class="str">path/to/YourApp.sln</span>
+      PROJECT_PATH:  <span class="str">path/to/YourApp/YourApp.csproj</span>
+      TEST_PATH:     <span class="str">path/to/YourApp.Tests/YourApp.Tests.csproj</span>
+      PUBLISH_DIR:   <span class="str">C:\deploy\publish</span>
+      IIS_SITE_PATH: <span class="str">C:\inetpub\YourApp</span>
+      APP_POOL:      <span class="str">YourAppPool</span>
+      <span class="comment"># ──────────────────────────────────────────────────────────</span>
+
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> Checkout code
+        <span class="kw">uses:</span> actions/checkout@v4
+
+      - <span class="kw">name:</span> Setup .NET 6
+        <span class="kw">uses:</span> actions/setup-dotnet@v4
+        <span class="kw">with:</span>
+          dotnet-version: <span class="str">'6.0.x'</span>
+
+      - <span class="kw">name:</span> Restore dependencies
+        <span class="kw">run:</span> dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - <span class="kw">name:</span> Build solution
+        <span class="kw">run:</span> dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+
+      - <span class="kw">name:</span> Run tests
+        <span class="kw">run:</span> dotnet test ${{ env.TEST_PATH }} --configuration Release --no-build --verbosity normal
+
+      - <span class="kw">name:</span> Publish
+        <span class="kw">run:</span> dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --output ${{ env.PUBLISH_DIR }} --no-build
+
+      - <span class="kw">name:</span> Stop IIS App Pool
+        <span class="kw">shell:</span> powershell
+        <span class="kw">run:</span> |
+          Import-Module WebAdministration
+          Stop-WebAppPool -Name "${{ env.APP_POOL }}"
+          Start-Sleep -Seconds 2
+
+      - <span class="kw">name:</span> Deploy to IIS
+        <span class="kw">shell:</span> powershell
+        <span class="kw">run:</span> |
+          Remove-Item -Path "${{ env.IIS_SITE_PATH }}\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item  -Path "${{ env.PUBLISH_DIR }}\*"   -Destination "${{ env.IIS_SITE_PATH }}" -Recurse -Force
+          Write-Host "Deployed to ${{ env.IIS_SITE_PATH }}"
+
+      - <span class="kw">name:</span> Start IIS App Pool
+        <span class="kw">shell:</span> powershell
+        <span class="kw">run:</span> |
+          Import-Module WebAdministration
+          Start-WebAppPool -Name "${{ env.APP_POOL }}"
+          Write-Host "Deployment complete"</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Build the full solution, not just the project</strong>
+          <p>The <code>Restore</code> and <code>Build</code> steps must target the <strong>.sln file</strong> (not the .csproj). This ensures test projects are also compiled before the test step runs with <code>--no-build</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Step 9 ── -->
+  <section id="step9">
+    <h2>Step 9 — Trigger the First Deployment</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">9</span>
+        <h4>Push the workflow file to trigger the first run</h4>
+      </div>
+      <pre><code><span class="comment"># Clone the repo (if not already cloned)</span>
+git clone https://github.com/&lt;OWNER&gt;/&lt;REPO&gt;.git
+cd &lt;REPO&gt;
+
+<span class="comment"># Create the workflow directory</span>
+mkdir -p .github/workflows
+
+<span class="comment"># Paste the workflow YAML into .github/workflows/deploy-to-iis.yml
+# then commit and push</span>
+git add .github/workflows/deploy-to-iis.yml
+git commit -m <span class="str">"Add CI/CD workflow for IIS deployment"</span>
+git push origin main</code></pre>
+
+      <p>The push immediately triggers the workflow. Monitor progress at:</p>
+      <pre><code>https://github.com/&lt;OWNER&gt;/&lt;REPO&gt;/actions</code></pre>
+    </div>
+  </section>
+
+  <!-- ── Verify ── -->
+  <section id="verify">
+    <h2>Verify the Deployment</h2>
+
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">✓</span>
+        <h4>Post-deploy verification checklist</h4>
+      </div>
+      <p>Run this PowerShell script after the pipeline completes:</p>
+      <pre><code>Import-Module WebAdministration
+
+<span class="comment"># 1. Files are in place</span>
+Write-Host <span class="str">"--- Deployed files ---"</span>
+Get-ChildItem <span class="str">"C:\inetpub\SampleWebApp"</span> | Select-Object Name
+
+<span class="comment"># 2. IIS site is started</span>
+Write-Host <span class="str">"--- IIS Site ---"</span>
+Get-WebSite -Name <span class="str">"SampleWebApp"</span> | Select-Object Name, State
+
+<span class="comment"># 3. App pool is started</span>
+Write-Host <span class="str">"--- App Pool ---"</span>
+Get-WebAppPoolState -Name <span class="str">"SampleWebAppPool"</span>
+
+<span class="comment"># 4. HTTP response</span>
+Write-Host <span class="str">"--- HTTP Test ---"</span>
+<span class="var">$r</span> = Invoke-WebRequest -Uri <span class="str">"http://localhost:8080"</span> -UseBasicParsing
+Write-Host <span class="str">"Status: <span class="var">$($r.StatusCode)</span>"</span></code></pre>
+
+      <ul class="checklist" style="margin-top:14px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 0;">
+        <li>Deployed files exist in <code>C:\inetpub\SampleWebApp\</code></li>
+        <li>IIS site state is <strong>Started</strong></li>
+        <li>App pool state is <strong>Started</strong></li>
+        <li>HTTP request to <code>http://localhost:&lt;port&gt;</code> returns <strong>200 OK</strong></li>
+        <li>Site is accessible from external browser at <code>http://&lt;SERVER_IP&gt;:&lt;port&gt;</code></li>
+        <li>GitHub repo → Actions shows all steps in <strong>green</strong></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── Troubleshooting ── -->
+  <section id="troubleshoot">
+    <h2>Troubleshooting</h2>
+
+    <h3>Runner shows as Offline on GitHub</h3>
+    <div class="step-card">
+      <p>Check if the scheduled task is running:</p>
+      <pre><code>Get-ScheduledTask -TaskName "GitHubActionsRunner" | Select-Object TaskName, State</code></pre>
+      <p>If state is not <code>Running</code>, start it:</p>
+      <pre><code>Start-ScheduledTask -TaskName "GitHubActionsRunner"</code></pre>
+      <p>Check runner logs for errors:</p>
+      <pre><code>Get-ChildItem "C:\actions-runner\_diag\" -Filter "*.log" |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1 |
+    ForEach-Object { Get-Content $_.FullName -Tail 30 }</code></pre>
+    </div>
+
+    <h3>Checkout step fails with "cannot find path .github"</h3>
+    <div class="step-card">
+      <p>Git is not in the runner's PATH. Fix:</p>
+      <pre><code><span class="var">$gitPath</span> = <span class="str">"C:\Program Files\Git\cmd"</span>
+<span class="var">$cur</span>     = [System.Environment]::GetEnvironmentVariable(<span class="str">"PATH"</span>, <span class="str">"Machine"</span>)
+[System.Environment]::SetEnvironmentVariable(<span class="str">"PATH"</span>, <span class="str">"<span class="var">$cur</span>;<span class="var">$gitPath</span>"</span>, <span class="str">"Machine"</span>)
+Stop-ScheduledTask  -TaskName <span class="str">"GitHubActionsRunner"</span>
+Start-Sleep -Seconds 2
+Start-ScheduledTask -TaskName <span class="str">"GitHubActionsRunner"</span></code></pre>
+    </div>
+
+    <h3>Test step fails — DLL not found</h3>
+    <div class="step-card">
+      <p>The Build step is targeting only the web project <code>.csproj</code>, so the test project is never compiled. Fix: change the Restore and Build steps to target the <strong>.sln</strong> file instead.</p>
+    </div>
+
+    <h3>Site returns HTTP 500.19 or 500.30</h3>
+    <div class="step-card">
+      <p><strong>500.19</strong> — Hosting Bundle not installed or IIS not restarted after install.</p>
+      <pre><code><span class="comment"># Reinstall hosting bundle, then restart IIS</span>
+winget install Microsoft.DotNet.HostingBundle.6 --silent
+Stop-Service W3SVC -Force; Start-Service W3SVC</code></pre>
+      <p><strong>500.30</strong> — App failed to start. Check the Windows Event Log:</p>
+      <pre><code>Get-EventLog -LogName Application -Source "IIS AspNetCore Module*" -Newest 10 |
+    Select-Object TimeGenerated, Message | Format-List</code></pre>
+    </div>
+
+    <h3>Site not reachable from browser (but works on localhost)</h3>
+    <div class="step-card">
+      <p>Two things to check:</p>
+      <p><strong>1. Windows Firewall</strong> — add inbound rule:</p>
+      <pre><code>New-NetFirewallRule -DisplayName "IIS Port 8080" -Direction Inbound `
+    -Protocol TCP -LocalPort 8080 -Action Allow -Profile Any</code></pre>
+      <p><strong>2. Cloud NSG / Security Group</strong> — open port 8080 inbound from your cloud provider's portal (Azure NSG, AWS Security Group, etc.).</p>
+    </div>
+  </section>
+
+  <!-- ── Variable Reference ── -->
+  <section id="variables">
+    <h2>Variable Reference</h2>
+    <p>When deploying to a new server, only these values need to change:</p>
+    <table>
+      <tr><th>Variable</th><th>Example Value</th><th>Where to change it</th></tr>
+      <tr><td><code>SOLUTION_PATH</code></td><td><code>src/MyApp.sln</code></td><td>Workflow YAML env section</td></tr>
+      <tr><td><code>PROJECT_PATH</code></td><td><code>src/MyApp/MyApp.csproj</code></td><td>Workflow YAML env section</td></tr>
+      <tr><td><code>TEST_PATH</code></td><td><code>src/MyApp.Tests/MyApp.Tests.csproj</code></td><td>Workflow YAML env section</td></tr>
+      <tr><td><code>PUBLISH_DIR</code></td><td><code>C:\deploy\publish</code></td><td>Workflow YAML env section</td></tr>
+      <tr><td><code>IIS_SITE_PATH</code></td><td><code>C:\inetpub\MyApp</code></td><td>Workflow YAML + Step 4 script</td></tr>
+      <tr><td><code>APP_POOL</code></td><td><code>MyAppPool</code></td><td>Workflow YAML + Step 4 script</td></tr>
+      <tr><td><code>$port</code></td><td><code>8080</code></td><td>Step 4 script + Step 5 script</td></tr>
+      <tr><td>Runner token</td><td><code>AXXXX...</code></td><td>Step 6c (get fresh token each time)</td></tr>
+      <tr><td>.NET version</td><td><code>6</code>, <code>7</code>, <code>8</code></td><td>winget package name + workflow YAML</td></tr>
+    </table>
+  </section>
+
+  <footer>
+    <p>Internal L3 Operations Guide &nbsp;|&nbsp; ASP.NET Core 6 → IIS via GitHub Actions Self-Hosted Runner &nbsp;|&nbsp; Windows Server 2025</p>
+    <p style="margin-top:6px;">Generated: May 2026</p>
+  </footer>
+
+</main>
+</body>
+</html>
